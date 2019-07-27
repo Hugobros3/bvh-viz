@@ -16,6 +16,9 @@ use crate::bbox::{BBox, enclosing_bbox};
 use cgmath::Vector3;
 use typed_arena::Arena;
 use std::convert::TryInto;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::borrow::BorrowMut;
 
 /// describes the BVHs typically used by Rodent on the CPU side
 type RodentBvh4_8<'a> = BvhTree<InnerNode8, LeafNode4<'a, Triangle>>;
@@ -106,7 +109,7 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*RodentBvh4_8<'a>*/ {
 struct ConversionEnv<'a> {
     node8vec: Vec<Node8>,
     tri4vec: Vec<Tri4>,
-    inner_nodes:Vec<InnerNode8>,
+    inner_nodes: Vec<InnerNode8>,
     leaf_nodes: Vec<LeafNode4<'a, Triangle>>,
     triangles: Arena<Triangle>,
 }
@@ -200,7 +203,67 @@ fn write_leaf_node<'a>(bbox: BBox, tri4: Tri4, leaf_nodes: &'a mut Vec<LeafNode4
     NodeId::Leaf((env.leaf_nodes.len() - 1) as i32)
 }*/
 
-fn write_inner_node<'a, 'b: 'a>(node8: Node8, env: &'a mut ConversionEnv<'a>) -> NodeId {
+struct Src {
+    node8vec: Vec<Node8>,
+    tri4vec: Vec<Tri4>,
+}
+
+struct FillMe<'a> {
+    inner_nodes: Vec<InnerNode8>,
+    leaf_nodes: Vec<LeafNode4<'a, Triangle>>,
+    triangles: Arena<Triangle>,
+}
+
+fn do_something(f: &mut FillMe) {
+    println!("{:?}", f.leaf_nodes.len());
+}
+
+fn write_inner_node(src: &Src, node8: Node8, fill_me: Rc<RefCell<FillMe>>) -> NodeId {
+    let mut bbox = extract_bbox(&node8, 0);
+    let mut count = 0;
+    let mut child_nodes = [NodeId::None; 8];
+
+    for i in 0..8 {
+        let child = node8.child[i as usize];
+        if child == 0 {
+            break;
+        }
+
+        let child_bbox = extract_bbox(&node8, i);
+        bbox = enclosing_bbox(&bbox, &child_bbox);
+
+        let wrote_ref: NodeId;
+        if child > 0 {
+            let child_node8_id = child - 1;
+            let child_node8 = src.node8vec[child_node8_id as usize];
+            wrote_ref = write_inner_node(src, child_node8, Rc::clone(&fill_me));
+        } else {
+            let child_tri4_id = !child;
+
+            let cloned = Rc::clone(&fill_me);
+            let mut borrow = (*cloned).borrow_mut();
+            let mut_borrow_ref:&mut FillMe = &mut borrow;
+            //wrote_ref = write_leaf_node(child_bbox, src.tri4vec[child_tri4_id as usize], &mut borrow.leaf_nodes, &mut borrow.triangles);
+            //let borrow = (*fill_me).borrow_mut();
+            wrote_ref = write_leaf_node(child_bbox, src.tri4vec[child_tri4_id as usize], &mut mut_borrow_ref.leaf_nodes, &mut mut_borrow_ref.triangles);
+            //do_something(mut_borrow_ref);
+            //wrote_ref = NodeId::None;
+        }
+        child_nodes[i as usize] = wrote_ref;
+
+        count += 1;
+    }
+
+    let node = InnerNode8 {
+        real_count: count,
+        nodes: child_nodes,
+        bbox: bbox,
+    };
+    (*fill_me).borrow_mut().inner_nodes.push(node);
+    return NodeId::Inner((fill_me.borrow().inner_nodes.len() - 1) as i32);
+}
+
+/*fn write_inner_node<'a, 'b: 'a>(node8: Node8, env: &'a mut ConversionEnv<'b>) -> NodeId {
     let mut bbox = extract_bbox(&node8, 0);
     let mut count = 0;
     let mut child_nodes = [NodeId::None; 8];
@@ -216,7 +279,8 @@ fn write_inner_node<'a, 'b: 'a>(node8: Node8, env: &'a mut ConversionEnv<'a>) ->
         let wrote_ref: NodeId;
         if child > 0 {
             let child_node8_id = child - 1;
-            wrote_ref = write_inner_node(env.node8vec[child_node8_id as usize], env);
+            let child_node8 = env.node8vec[child_node8_id as usize];
+            wrote_ref = write_inner_node(child_node8, env);
         } else {
             let child_tri4_id = !child;
             wrote_ref = write_leaf_node(child_bbox, env.tri4vec[child_tri4_id as usize], &mut env.leaf_nodes, &mut env.triangles);
@@ -233,7 +297,7 @@ fn write_inner_node<'a, 'b: 'a>(node8: Node8, env: &'a mut ConversionEnv<'a>) ->
     };
     env.inner_nodes.push(node);
     return NodeId::Inner((env.inner_nodes.len() - 1) as i32);
-}
+}*/
 
 const DUMMY_TRIANGLE: Triangle = Triangle {
     v0: Vector3 { x: 0.0, y: 0.0, z: 0.0 },

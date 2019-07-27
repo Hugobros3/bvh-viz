@@ -24,7 +24,7 @@ impl<P> Node for LeafNode1<'_, P> {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct LeafNode4<'a, P> {
+pub struct LeafNode4<'a, P: 'a> {
     pub real_count: i8,
     pub primitives: [&'a P;4],
     pub bbox: BBox,
