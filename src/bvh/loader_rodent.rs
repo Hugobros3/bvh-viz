@@ -133,7 +133,7 @@ fn write_leaf_node<'a, 'b: 'a>(bbox: BBox, tri4: Tri4, env: &'a mut ConversionEn
             v2: v2,
         };
 
-        let tri_ref = env.triangles.alloc(triangle);
+        let tri_ref:&'b Triangle = env.triangles.alloc(triangle);
         prim_triangles.push(tri_ref);
 
         count += 1;
@@ -141,7 +141,7 @@ fn write_leaf_node<'a, 'b: 'a>(bbox: BBox, tri4: Tri4, env: &'a mut ConversionEn
 
     let mut triangle_refs = [&dummy_triangle; 4];
     for i in 0..count {
-        triangle_refs[i] = prim_triangles[i];//(add_to_list_and_return_index(prim_triangles[i], env));
+        triangle_refs[i] = prim_triangles[i];
     }
 
     let node = LeafNode4 {
