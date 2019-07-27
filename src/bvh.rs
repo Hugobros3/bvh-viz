@@ -7,7 +7,7 @@ pub mod leaf_arities;
 use self::either::Either;
 use crate::bbox::BBox;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum NodeId {
     Inner(i32),
     Leaf(i32),

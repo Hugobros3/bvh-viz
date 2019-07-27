@@ -14,11 +14,13 @@ use compress::lz4::Decoder;
 use std::collections::HashMap;
 use crate::bbox::{BBox, enclosing_bbox};
 use cgmath::Vector3;
+use typed_arena::Arena;
+use std::convert::TryInto;
 
 /// describes the BVHs typically used by Rodent on the CPU side
 type RodentBvh4_8<'a> = BvhTree<InnerNode8, LeafNode4<'a, Triangle>>;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 struct Node8 {
     bounds: [[f32; 8]; 6],
@@ -26,7 +28,7 @@ struct Node8 {
     pad: [i32; 8],
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 struct Tri4 {
     v0: [[f32; 4]; 3],
@@ -76,16 +78,26 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*RodentBvh4_8<'a>*/ {
 
         let mut map: HashMap<i32, NodeId> = HashMap::new();
 
-        let mut stack: Vec<&Node8> = Vec::new();
-        let node8_root = &node8vec[0];
 
-        stack.push(node8_root);
+        let node8_root = node8vec[0];
+        let mut conversion_env = ConversionEnv {
+            node8vec,
+            tri4vec,
+            inner_nodes: &mut inner_nodes,
+            leaf_nodes: &mut leaf_nodes,
+            triangles: Arena::new(),
+        };
 
-        /*while (!stack.is_empty()) {
-            let pop = stack.pop().unwrap();
-        }*/
+        let root_node_id;
 
+        {
+            root_node_id = write_inner_node(node8_root, &mut conversion_env);
+        }
         println!("Read everything Ok ! {}", nodes_buffer.len());
+
+        if let NodeId::Inner(iid) = root_node_id {
+            println!("{:?}", conversion_env.inner_nodes.get(iid as usize).unwrap());
+        }
     } else {
         unimplemented!("Unsupported inner node struct size: {}", inner_node_struct_size)
     }
@@ -96,12 +108,12 @@ struct ConversionEnv<'a> {
     tri4vec: Vec<Tri4>,
     inner_nodes: &'a mut Vec<InnerNode8>,
     leaf_nodes: &'a mut Vec<LeafNode4<'a, Triangle>>,
-    triangles: Vec<Triangle>,
+    triangles: Arena<Triangle>,
 }
 
-fn write_leaf_node(bbox: BBox, tri4: &Tri4, env: &mut ConversionEnv) -> NodeId {
+fn write_leaf_node<'a, 'b: 'a>(bbox: BBox, tri4: Tri4, env: &'a mut ConversionEnv<'b>) -> NodeId {
     let mut count = 0;
-    let mut prim_triangles: Vec<Triangle> = Vec::new();
+    let mut prim_triangles: Vec<&Triangle> = Vec::new();
     for i in 0..4 {
         let prim_id = tri4.prim_id[i];
         if prim_id < 0 {
@@ -121,17 +133,15 @@ fn write_leaf_node(bbox: BBox, tri4: &Tri4, env: &mut ConversionEnv) -> NodeId {
             v2: v2,
         };
 
-        prim_triangles.push(triangle);
-        //prim_triangles.push(add_to_list_and_return_index(triangle, env));
-        //env.triangles.push(triangle);
-        //prim_triangles.push(env.triangles.last().unwrap());
+        let tri_ref = env.triangles.alloc(triangle);
+        prim_triangles.push(tri_ref);
 
         count += 1;
     }
 
-    let mut triangle_refs = [&env.triangles[0]; 4];
+    let mut triangle_refs = [&dummy_triangle; 4];
     for i in 0..count {
-        triangle_refs[i] = (add_to_list_and_return_index(prim_triangles[i], env));
+        triangle_refs[i] = prim_triangles[i];//(add_to_list_and_return_index(prim_triangles[i], env));
     }
 
     let node = LeafNode4 {
@@ -139,16 +149,18 @@ fn write_leaf_node(bbox: BBox, tri4: &Tri4, env: &mut ConversionEnv) -> NodeId {
         primitives: triangle_refs,
         bbox,
     };
-    NodeId::Leaf(env.leaf_nodes.len() as i32)
+    env.leaf_nodes.push(node);
+    NodeId::Leaf((env.leaf_nodes.len() - 1) as i32)
 }
 
-fn add_to_list_and_return_index<'a>(add: Triangle, env: &'a mut ConversionEnv) -> &'a Triangle {
-    env.triangles.push(add);
-    env.triangles.last().unwrap()
-}
+const dummy_triangle: Triangle = Triangle {
+    v0: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+    v1: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+    v2: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+};
 
-/*fn write_inner_node(node8: &Node8, env: &mut ConversionEnv) -> NodeId {
-    let mut bbox = extract_bbox(node8, 0);
+fn write_inner_node<'a, 'b>(node8: Node8, env: &'a mut ConversionEnv<'b>) -> NodeId {
+    let mut bbox = extract_bbox(&node8, 0);
     let mut count = 0;
     let mut child_nodes = [NodeId::None; 8];
     for i in 0..8 {
@@ -157,17 +169,18 @@ fn add_to_list_and_return_index<'a>(add: Triangle, env: &'a mut ConversionEnv) -
             break;
         }
 
-        let child_bbox = extract_bbox(node8, i);
+        let child_bbox = extract_bbox(&node8, i);
         bbox = enclosing_bbox(&bbox, &child_bbox);
 
         let wrote_ref: NodeId;
         if child > 0 {
             let child_node8_id = child - 1;
-            wrote_ref = write_inner_node(&env.node8vec[child_node8_id as usize], env);
+            wrote_ref = write_inner_node(env.node8vec[child_node8_id as usize], env);
         } else {
             let child_tri4_id = !child;
-            wrote_ref = write_leaf_node(child_bbox, &env.tri4vec[child_tri4_id as usize], env);
+            wrote_ref = write_leaf_node(child_bbox, env.tri4vec[child_tri4_id as usize], env);
         }
+        child_nodes[i as usize] = wrote_ref;
 
         count += 1;
     }
@@ -178,8 +191,8 @@ fn add_to_list_and_return_index<'a>(add: Triangle, env: &'a mut ConversionEnv) -
         bbox: bbox,
     };
     env.inner_nodes.push(node);
-    return NodeId::Inner(env.inner_nodes.len() as i32);
-}*/
+    return NodeId::Inner((env.inner_nodes.len() - 1) as i32);
+}
 
 fn extract_vec3(list: &[[f32; 4]; 3], i: usize) -> Vector3<f32> {
     Vector3 {

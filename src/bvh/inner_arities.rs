@@ -1,10 +1,11 @@
 use crate::bvh::{NodeId, InnerNode, Node};
 use crate::bbox::BBox;
 
+#[derive(Copy, Clone, Debug)]
 pub struct InnerNode2 {
-    left: NodeId,
-    right: NodeId,
-    bbox: BBox,
+    pub left: NodeId,
+    pub right: NodeId,
+    pub bbox: BBox,
 }
 
 impl InnerNode for InnerNode2 {
@@ -24,10 +25,11 @@ impl Node for InnerNode2 {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct InnerNode8 {
-    real_count: i8,
-    nodes: [NodeId;8],
-    bbox: BBox,
+    pub real_count: i8,
+    pub nodes: [NodeId;8],
+    pub bbox: BBox,
 }
 
 impl InnerNode for InnerNode8 {

@@ -1,6 +1,6 @@
 use cgmath::{vec3, Vector3, InnerSpace};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct BBox {
     pub min: Vector3<f32>,
     pub max: Vector3<f32>,

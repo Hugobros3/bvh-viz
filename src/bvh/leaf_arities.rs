@@ -1,9 +1,10 @@
 use crate::bvh::{LeafNode, Node};
 use crate::bbox::BBox;
 
+#[derive(Copy, Clone, Debug)]
 pub struct LeafNode1<'a, P> {
-    primitive: &'a P,
-    bbox: BBox,
+    pub primitive: &'a P,
+    pub bbox: BBox,
 }
 
 impl<P> LeafNode<P> for LeafNode1<'_, P> {
@@ -22,10 +23,11 @@ impl<P> Node for LeafNode1<'_, P> {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct LeafNode4<'a, P> {
-    real_count: i8,
-    primitives: [&'a P;4],
-    bbox: BBox,
+    pub real_count: i8,
+    pub primitives: [&'a P;4],
+    pub bbox: BBox,
 }
 
 impl<P> LeafNode<P> for LeafNode4<'_, P> {
