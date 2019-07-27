@@ -218,7 +218,7 @@ fn do_something(f: &mut FillMe) {
     println!("{:?}", f.leaf_nodes.len());
 }
 
-fn write_inner_node(src: &Src, node8: Node8, fill_me: Rc<RefCell<FillMe>>) -> NodeId {
+fn write_inner_node<'a>(src: &Src, node8: Node8, fill_me: &'a mut FillMe<'a>) -> NodeId {
     let mut bbox = extract_bbox(&node8, 0);
     let mut count = 0;
     let mut child_nodes = [NodeId::None; 8];
@@ -236,18 +236,10 @@ fn write_inner_node(src: &Src, node8: Node8, fill_me: Rc<RefCell<FillMe>>) -> No
         if child > 0 {
             let child_node8_id = child - 1;
             let child_node8 = src.node8vec[child_node8_id as usize];
-            wrote_ref = write_inner_node(src, child_node8, Rc::clone(&fill_me));
+            wrote_ref = write_inner_node(src, child_node8, fill_me);
         } else {
             let child_tri4_id = !child;
-
-            let cloned = Rc::clone(&fill_me);
-            let mut borrow = (*cloned).borrow_mut();
-            let mut_borrow_ref:&mut FillMe = &mut borrow;
-            //wrote_ref = write_leaf_node(child_bbox, src.tri4vec[child_tri4_id as usize], &mut borrow.leaf_nodes, &mut borrow.triangles);
-            //let borrow = (*fill_me).borrow_mut();
-            wrote_ref = write_leaf_node(child_bbox, src.tri4vec[child_tri4_id as usize], &mut mut_borrow_ref.leaf_nodes, &mut mut_borrow_ref.triangles);
-            //do_something(mut_borrow_ref);
-            //wrote_ref = NodeId::None;
+            wrote_ref = write_leaf_node(child_bbox, src.tri4vec[child_tri4_id as usize], &mut fill_me.leaf_nodes, &mut fill_me.triangles);
         }
         child_nodes[i as usize] = wrote_ref;
 
@@ -259,8 +251,8 @@ fn write_inner_node(src: &Src, node8: Node8, fill_me: Rc<RefCell<FillMe>>) -> No
         nodes: child_nodes,
         bbox: bbox,
     };
-    (*fill_me).borrow_mut().inner_nodes.push(node);
-    return NodeId::Inner((fill_me.borrow().inner_nodes.len() - 1) as i32);
+    fill_me.inner_nodes.push(node);
+    return NodeId::Inner((fill_me.inner_nodes.len() - 1) as i32);
 }
 
 /*fn write_inner_node<'a, 'b: 'a>(node8: Node8, env: &'a mut ConversionEnv<'b>) -> NodeId {
