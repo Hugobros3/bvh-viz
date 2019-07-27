@@ -83,12 +83,12 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*RodentBvh4_8<'a>*/ {
         let mut conversion_env = ConversionEnv {
             node8vec,
             tri4vec,
-            inner_nodes: &mut inner_nodes,
-            leaf_nodes: &mut leaf_nodes,
+            inner_nodes: inner_nodes,
+            leaf_nodes: leaf_nodes,
             triangles: Arena::new(),
         };
 
-        let root_node_id;
+        /*let root_node_id;
 
         {
             root_node_id = write_inner_node(node8_root, &mut conversion_env);
@@ -97,7 +97,7 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*RodentBvh4_8<'a>*/ {
 
         if let NodeId::Inner(iid) = root_node_id {
             println!("{:?}", conversion_env.inner_nodes.get(iid as usize).unwrap());
-        }
+        }*/
     } else {
         unimplemented!("Unsupported inner node struct size: {}", inner_node_struct_size)
     }
@@ -106,12 +106,15 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*RodentBvh4_8<'a>*/ {
 struct ConversionEnv<'a> {
     node8vec: Vec<Node8>,
     tri4vec: Vec<Tri4>,
-    inner_nodes: &'a mut Vec<InnerNode8>,
-    leaf_nodes: &'a mut Vec<LeafNode4<'a, Triangle>>,
+    inner_nodes:Vec<InnerNode8>,
+    leaf_nodes: Vec<LeafNode4<'a, Triangle>>,
     triangles: Arena<Triangle>,
 }
 
-fn write_leaf_node<'a, 'b: 'a>(bbox: BBox, tri4: Tri4, env: &'a mut ConversionEnv<'b>) -> NodeId {
+fn write_leaf_node<'a>(bbox: BBox, tri4: Tri4, leaf_nodes: &'a mut Vec<LeafNode4<'a, Triangle>>, triangles: &'a mut Arena<Triangle>) -> NodeId {
+    /*let triangle = degenerate_triangle();
+    let triangle_ref:&Triangle = triangles.alloc(triangle);
+    let triangle_refs = [triangle_ref, triangle_ref, triangle_ref, triangle_ref];*/
     let mut count = 0;
     let mut prim_triangles: Vec<&Triangle> = Vec::new();
     for i in 0..4 {
@@ -133,13 +136,57 @@ fn write_leaf_node<'a, 'b: 'a>(bbox: BBox, tri4: Tri4, env: &'a mut ConversionEn
             v2: v2,
         };
 
-        let tri_ref:&'b Triangle = env.triangles.alloc(triangle);
+        let tri_ref: &Triangle = triangles.alloc(triangle);
         prim_triangles.push(tri_ref);
 
         count += 1;
     }
 
-    let mut triangle_refs = [&dummy_triangle; 4];
+    let mut triangle_refs = [&DUMMY_TRIANGLE; 4];
+    for i in 0..count {
+        triangle_refs[i] = prim_triangles[i];
+    }
+
+    let node = LeafNode4 {
+        real_count: 1,
+        primitives: triangle_refs,
+        bbox,
+    };
+
+    leaf_nodes.push(node);
+    NodeId::Leaf((leaf_nodes.len() - 1) as i32)
+}
+
+/*fn write_leaf_node<'a, 'b: 'a>(bbox: BBox, tri4: Tri4, env: &'a mut ConversionEnv<'b>) -> NodeId {
+    let mut count = 0;
+    let mut prim_triangles: Vec<&Triangle> = Vec::new();
+    for i in 0..4 {
+        let prim_id = tri4.prim_id[i];
+        if prim_id < 0 {
+            break;
+        }
+
+        let v0 = extract_vec3(&tri4.v0, i);
+        let e1 = extract_vec3(&tri4.e1, i);
+        let e2 = extract_vec3(&tri4.e2, i);
+
+        let v1 = v0 - e1;
+        let v2 = e2 - v0;
+
+        let triangle = degenerate_triangle(); /*Triangle {
+            v0: v0,
+            v1: v1,
+            v2: v2,
+        };*/
+
+        let tris: &'b Arena<Triangle> = &env.triangles;
+        let tri_ref:&'b Triangle = tris.alloc(triangle);
+        prim_triangles.push(tri_ref);
+
+        count += 1;
+    }
+
+    let mut triangle_refs = [&DUMMY_TRIANGLE; 4];
     for i in 0..count {
         triangle_refs[i] = prim_triangles[i];
     }
@@ -151,15 +198,9 @@ fn write_leaf_node<'a, 'b: 'a>(bbox: BBox, tri4: Tri4, env: &'a mut ConversionEn
     };
     env.leaf_nodes.push(node);
     NodeId::Leaf((env.leaf_nodes.len() - 1) as i32)
-}
+}*/
 
-const dummy_triangle: Triangle = Triangle {
-    v0: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-    v1: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-    v2: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-};
-
-fn write_inner_node<'a, 'b>(node8: Node8, env: &'a mut ConversionEnv<'b>) -> NodeId {
+fn write_inner_node<'a, 'b: 'a>(node8: Node8, env: &'a mut ConversionEnv<'a>) -> NodeId {
     let mut bbox = extract_bbox(&node8, 0);
     let mut count = 0;
     let mut child_nodes = [NodeId::None; 8];
@@ -178,7 +219,7 @@ fn write_inner_node<'a, 'b>(node8: Node8, env: &'a mut ConversionEnv<'b>) -> Nod
             wrote_ref = write_inner_node(env.node8vec[child_node8_id as usize], env);
         } else {
             let child_tri4_id = !child;
-            wrote_ref = write_leaf_node(child_bbox, env.tri4vec[child_tri4_id as usize], env);
+            wrote_ref = write_leaf_node(child_bbox, env.tri4vec[child_tri4_id as usize], &mut env.leaf_nodes, &mut env.triangles);
         }
         child_nodes[i as usize] = wrote_ref;
 
@@ -193,6 +234,12 @@ fn write_inner_node<'a, 'b>(node8: Node8, env: &'a mut ConversionEnv<'b>) -> Nod
     env.inner_nodes.push(node);
     return NodeId::Inner((env.inner_nodes.len() - 1) as i32);
 }
+
+const DUMMY_TRIANGLE: Triangle = Triangle {
+    v0: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+    v1: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+    v2: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+};
 
 fn extract_vec3(list: &[[f32; 4]; 3], i: usize) -> Vector3<f32> {
     Vector3 {
