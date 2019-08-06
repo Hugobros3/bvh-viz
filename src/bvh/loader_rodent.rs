@@ -21,7 +21,7 @@ use std::cell::RefCell;
 use std::borrow::BorrowMut;
 
 /// describes the BVHs typically used by Rodent on the CPU side
-type RodentBvh4_8<'a> = BvhTree<InnerNode8, LeafNode4<'a, Triangle>>;
+type RodentBvh4_8<'a> = BvhTree<InnerNode8, LeafNode4<'a, Triangle>, Triangle>;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
