@@ -18,10 +18,12 @@ use typed_arena::Arena;
 use std::convert::TryInto;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::borrow::BorrowMut;
+use std::borrow::{BorrowMut, Borrow};
+use std::marker::PhantomData;
+use std::pin::Pin;
 
 /// describes the BVHs typically used by Rodent on the CPU side
-type RodentBvh4_8<'a> = BvhTree<InnerNode8, LeafNode4<'a, Triangle>, Triangle>;
+type RodentBvh4_8<'a> = BvhTree<'a, Triangle, InnerNode8, LeafNode4<'a, Triangle>>;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -42,7 +44,7 @@ struct Tri4 {
     geom_id: [i32; 4],
 }
 
-pub fn load_bvh_rodent<'a>(filename: &str) -> () /*RodentBvh4_8<'a>*/ {
+pub fn load_bvh_rodent<'a>(filename: &str) -> () /*Result<'a>*/ {
     let f = File::open(filename).expect("File not found");
     let mut reader = BufReader::new(f);
 
@@ -81,28 +83,77 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*RodentBvh4_8<'a>*/ {
 
         let mut map: HashMap<i32, NodeId> = HashMap::new();
 
-
         let node8_root = node8vec[0];
-        let conversion_env = ConversionEnv {
+        //let conversion_env = Rc::new(Box::new(ConversionEnv {
+        let conversion_env = Rc::new(ConversionEnv {
             node8vec,
             tri4vec,
             inner_nodes: RefCell::new(inner_nodes),
             leaf_nodes: RefCell::new(leaf_nodes),
             triangles: Arena::new(),
-        };
+        });
 
         let root_node_id;
         {
-            root_node_id = write_inner_node(node8_root, & conversion_env);
+            root_node_id = write_inner_node(node8_root, &conversion_env);
         }
-        println!("Read everything Ok ! {}", nodes_buffer.len());
 
         if let NodeId::Inner(iid) = root_node_id {
+            println!("Read everything Ok ! {}", nodes_buffer.len());
             println!("{:?}", conversion_env.inner_nodes.borrow().get(iid as usize).unwrap());
+
+
+            //convert(root_node_id, Rc::clone(&conversion_env));
+            //convert(root_node_id, conversion_env);
+            //unimplemented!("")
+            //return convert(root_node_id, conversion_env);
+        } else {
+            panic!("Something went wrong");
         }
+
+
     } else {
-        unimplemented!("Unsupported inner node struct size: {}", inner_node_struct_size)
+        panic!("Unsupported inner node struct size: {}", inner_node_struct_size);
     }
+}
+
+/*fn convert<'a>(root_node_id: NodeId, env: Rc<ConversionEnv<'a>>) -> Result<'a> {
+    //let borrowed_box: &ConversionEnv2 = env.borrow();
+    let env = Rc::clone(&env);
+
+    let extracted_inner = env.inner_nodes.borrow().as_ref();
+    let extracted_leaf = env.leaf_nodes.borrow().as_ref();
+
+    /*let bvh = RodentBvh4_8 {
+        inner_nodes: extracted_inner,
+        leaf_nodes: extracted_leaf,
+        root_node_id,
+        terrible: PhantomData,
+    };
+
+    return Result {
+        bvh,
+        data: env,
+    }*/
+    Result {
+        bvh: RodentBvh4_8 {
+            inner_nodes: extracted_inner,
+            leaf_nodes: extracted_leaf,
+            root_node_id,
+            terrible: PhantomData
+        },
+        data: env
+    }
+}*/
+struct Result<'a> {
+    bvh: RodentBvh4_8<'a>,
+    data: Rc<ConversionEnv<'a>>,
+}
+
+struct ConversionEnv2<'a> {
+    inner_nodes: RefCell<Vec<InnerNode8>>,
+    leaf_nodes: RefCell<Vec<LeafNode4<'a, Triangle>>>,
+    triangles: Arena<Triangle>,
 }
 
 struct ConversionEnv<'a> {

@@ -9,7 +9,7 @@ struct StackElem {
     t_min: f32,
 }
 
-impl<P, I, L> BvhTree<P, I, L>
+impl<'a, P, I, L> BvhTree<'a, P, I, L>
     where I: InnerNode,
           L: LeafNode<P>,
           P: Intersect {

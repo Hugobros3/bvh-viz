@@ -33,21 +33,21 @@ pub trait LeafNode<P>: Node
     fn get_primitive<'a>(&'a self, n: usize) -> &'a P;
 }
 
-pub struct BvhTree<P, I, L>
+pub struct BvhTree<'a, P, I, L>
     where I: InnerNode,
           L: LeafNode<P>,
           P: Intersect {
-    inner_nodes: Vec<I>,
-    leaf_nodes: Vec<L>,
+    inner_nodes: &'a Vec<I>,
+    leaf_nodes: &'a Vec<L>,
     root_node_id: NodeId,
     terrible: PhantomData<P>,
 }
 
-impl<P, I, L> BvhTree<P, I, L>
+impl<'a, P, I, L> BvhTree<'a, P, I, L>
     where I: InnerNode,
           L: LeafNode<P>,
           P: Intersect {
-    fn get_node<'a>(&'a self, id: NodeId) -> Either<&'a I, &'a L> {
+    fn get_node(&self, id: NodeId) -> Either<&I, &L> {
         match (id) {
             NodeId::Inner(id) => Either::Left(self.inner_nodes.get(id as usize).expect(format!("Out of bounds id {}", id).as_str())),
             NodeId::Leaf(id) => Either::Right(self.leaf_nodes.get(id as usize).expect(format!("Out of bounds id {}", id).as_str())),
