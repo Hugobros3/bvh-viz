@@ -172,7 +172,7 @@ fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<Le
     }
 
     let node = LeafNode4 {
-        real_count: 1,
+        real_count: count as i8,
         primitives: triangle_refs,
         bbox,
     };

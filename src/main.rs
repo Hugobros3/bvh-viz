@@ -36,9 +36,9 @@ fn main() {
         let t = (window.get_size().1 as i32 - y) as f32 / window.get_size().1 as f32;
         let mut ray = camera.make_ray(s, t);
         let hit = bvh.trace(&mut ray, false);
-        Color(f32::ln(ray.steps as f32) * 0.125, ray.steps as f32 / 32.0, if hit { 1.0 } else { 0.0 })
-        //let z = f32::ln(ray.t_max) * 0.25;
-        //Color(z, z, z)
+        //Color(f32::ln(ray.steps as f32) * 0.125, ray.steps as f32 / 32.0, if hit { 1.0 } else { 0.0 })
+        let z = f32::ln(ray.t_max) * 0.25;
+        Color(z, z, z)
     };
     display::open_window(shader);
 }

@@ -50,9 +50,9 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
                             }
 
                             //sorted.insert(insert, (distance, child_id));
-                            /*if(insert == scount) {
+                            /*if insert == scount {
                                 sorted[insert] = (distance, child_id);
-                            } else if (insert < scount ){
+                            } else if insert < scount {
                                 for i in (insert..(scount)).rev() {
                                     sorted[i + 1] = sorted[i];
                                 }
