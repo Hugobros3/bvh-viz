@@ -102,6 +102,8 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> Result {
             println!("Read everything Ok ! {}", nodes_buffer.len());
             println!("{:?}", conversion_env.inner_nodes.borrow().get(iid as usize).unwrap());
 
+            //println!("{:?}", &conversion_env.inner_nodes.borrow().iter());
+
             let result = unsafe {
                 Result {
                     bvh: RodentBvh4_8 {
@@ -122,35 +124,6 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> Result {
     }
 }
 
-/*fn convert<'a>(root_node_id: NodeId, env: Rc<ConversionEnv<'a>>) -> Result<'a> {
-    //let borrowed_box: &ConversionEnv2 = env.borrow();
-    let env = Rc::clone(&env);
-
-    let extracted_inner = env.inner_nodes.borrow().as_ref();
-    let extracted_leaf = env.leaf_nodes.borrow().as_ref();
-
-    /*let bvh = RodentBvh4_8 {
-        inner_nodes: extracted_inner,
-        leaf_nodes: extracted_leaf,
-        root_node_id,
-        terrible: PhantomData,
-    };
-
-    return Result {
-        bvh,
-        data: env,
-    }*/
-    Result {
-        bvh: RodentBvh4_8 {
-            inner_nodes: extracted_inner,
-            leaf_nodes: extracted_leaf,
-            root_node_id,
-            terrible: PhantomData
-        },
-        data: env
-    }
-}*/
-
 pub struct Result<'a> {
     pub bvh: RodentBvh4_8<'a>,
     data: Pin<Box<ConversionEnv>>,
@@ -169,16 +142,14 @@ fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<Le
     let mut prim_triangles: Vec<&Triangle> = Vec::new();
     for i in 0..4 {
         let prim_id = tri4.prim_id[i];
-        if prim_id < 0 {
-            break;
-        }
+        let last = prim_id < 0;
 
         let v0 = extract_vec3(&tri4.v0, i);
         let e1 = extract_vec3(&tri4.e1, i);
         let e2 = extract_vec3(&tri4.e2, i);
 
         let v1 = v0 - e1;
-        let v2 = e2 - v0;
+        let v2 = e2 + v0;
 
         let triangle = Triangle {
             v0: v0,
@@ -190,6 +161,9 @@ fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<Le
         prim_triangles.push(tri_ref);
 
         count += 1;
+        if last {
+            break;
+        }
     }
 
     let mut triangle_refs: [*const Triangle; 4] = [&DUMMY_TRIANGLE; 4];
@@ -226,12 +200,11 @@ fn write_inner_node(node8: Node8, env: &ConversionEnv) -> NodeId {
             let child_node8 = env.node8vec[child_node8_id as usize];
             wrote_ref = write_inner_node(child_node8, env);
         } else {
-            let child_tri4_id = !child;
+            let child_tri4_id = child ^ -1;
             let mut borrow = env.leaf_nodes.borrow_mut();
             wrote_ref = write_leaf_node(child_bbox, env.tri4vec[child_tri4_id as usize], borrow.as_mut(), &env.triangles);
         }
         child_nodes[i as usize] = wrote_ref;
-
         count += 1;
     }
 

@@ -49,8 +49,8 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
           P: Intersect {
     fn get_node(&self, id: NodeId) -> Either<&I, &L> {
         match (id) {
-            NodeId::Inner(id) => Either::Left(self.inner_nodes.get(id as usize).expect(format!("Out of bounds id {}", id).as_str())),
-            NodeId::Leaf(id) => Either::Right(self.leaf_nodes.get(id as usize).expect(format!("Out of bounds id {}", id).as_str())),
+            NodeId::Inner(id) => Either::Left(self.inner_nodes.get(id as usize).expect("out of bounds id")),
+            NodeId::Leaf(id) => Either::Right(self.leaf_nodes.get(id as usize).expect("out of bounds id")),
             NodeId::None => panic!("You can't lookup this!"),
         }
     }
