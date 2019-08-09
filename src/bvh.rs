@@ -30,7 +30,7 @@ pub trait LeafNode<P>: Node
     where P: Intersect {
     fn primitives_count(&self) -> i32;
     //fn get_primitives<'a>(&'a self, primitive_ids: &mut [&'a P]);
-    fn get_primitive<'a>(&'a self, n: usize) -> &'a P;
+    fn get_primitive(&self, n: usize) -> &P;
 }
 
 pub struct BvhTree<'a, P, I, L>

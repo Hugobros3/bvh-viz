@@ -8,6 +8,7 @@ mod bvh;
 mod geometry;
 mod bbox;
 mod ray;
+mod test;
 
 use typed_arena::Arena;
 use std::cell::RefCell;
@@ -15,29 +16,13 @@ use bvh::loader_rodent::*;
 use std::rc::Rc;
 use std::borrow::Borrow;
 use std::pin::Pin;
-
-struct SelfRef<'a> {
-    data: String,
-    ptr: RefCell<Vec<&'a String>>,
-}
-
-fn mk_weird<'a>() -> Pin<Box<SelfRef<'a>>> {
-    let s = Box::pin(SelfRef {
-        data: format!("weird flex but ok"),
-        ptr: RefCell::new(Vec::new())
-    });
-    {
-        let borrowed: &SelfRef = s.borrow();
-        borrowed.ptr.borrow_mut().push(&s.data);
-    }
-    return s;
-}
-
-fn weird() {
-
-}
+use crate::display::{Shader, Color};
 
 fn main() {
-    let bvh = load_bvh_rodent("bvh.bin");
-    display::open_window();
+    //let oof = &weird().damn.data;
+    //let bvh = load_bvh_rodent("bvh.bin");
+    let shader: Shader = | window, x, y | {
+        Color(x as f32 / 256.0, y as f32 / 256.0, 0.0)
+    };
+    display::open_window(shader);
 }

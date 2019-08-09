@@ -23,7 +23,7 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 
 /// describes the BVHs typically used by Rodent on the CPU side
-type RodentBvh4_8<'a> = BvhTree<'a, Triangle, InnerNode8, LeafNode4<'a, Triangle>>;
+type RodentBvh4_8<'a> = BvhTree<'a, Triangle, InnerNode8, LeafNode4<Triangle>>;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -44,7 +44,7 @@ struct Tri4 {
     geom_id: [i32; 4],
 }
 
-pub fn load_bvh_rodent<'a>(filename: &str) -> () /*Result<'a>*/ {
+pub fn load_bvh_rodent<'a>(filename: &str) -> Result {
     let f = File::open(filename).expect("File not found");
     let mut reader = BufReader::new(f);
 
@@ -85,7 +85,7 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*Result<'a>*/ {
 
         let node8_root = node8vec[0];
         //let conversion_env = Rc::new(Box::new(ConversionEnv {
-        let conversion_env = Rc::new(ConversionEnv {
+        let conversion_env = Box::pin(ConversionEnv {
             node8vec,
             tri4vec,
             inner_nodes: RefCell::new(inner_nodes),
@@ -102,16 +102,21 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*Result<'a>*/ {
             println!("Read everything Ok ! {}", nodes_buffer.len());
             println!("{:?}", conversion_env.inner_nodes.borrow().get(iid as usize).unwrap());
 
-
-            //convert(root_node_id, Rc::clone(&conversion_env));
-            //convert(root_node_id, conversion_env);
-            //unimplemented!("")
-            //return convert(root_node_id, conversion_env);
+            let result = unsafe {
+                Result {
+                    bvh: RodentBvh4_8 {
+                        inner_nodes: &*((conversion_env.inner_nodes.as_ptr())),
+                        leaf_nodes: &*((conversion_env.leaf_nodes.as_ptr())),
+                        root_node_id,
+                        terrible: PhantomData
+                    },
+                    data: conversion_env,
+                }
+            };
+            return result;
         } else {
             panic!("Something went wrong");
         }
-
-
     } else {
         panic!("Unsupported inner node struct size: {}", inner_node_struct_size);
     }
@@ -145,26 +150,21 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> () /*Result<'a>*/ {
         data: env
     }
 }*/
-struct Result<'a> {
-    bvh: RodentBvh4_8<'a>,
-    data: Rc<ConversionEnv<'a>>,
+
+pub struct Result<'a> {
+    pub bvh: RodentBvh4_8<'a>,
+    data: Pin<Box<ConversionEnv>>,
 }
 
-struct ConversionEnv2<'a> {
-    inner_nodes: RefCell<Vec<InnerNode8>>,
-    leaf_nodes: RefCell<Vec<LeafNode4<'a, Triangle>>>,
-    triangles: Arena<Triangle>,
-}
-
-struct ConversionEnv<'a> {
+struct ConversionEnv {
     node8vec: Vec<Node8>,
     tri4vec: Vec<Tri4>,
     inner_nodes: RefCell<Vec<InnerNode8>>,
-    leaf_nodes: RefCell<Vec<LeafNode4<'a, Triangle>>>,
+    leaf_nodes: RefCell<Vec<LeafNode4<Triangle>>>,
     triangles: Arena<Triangle>,
 }
 
-fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<LeafNode4<'a, Triangle>>, triangles: &'a Arena<Triangle>) -> NodeId {
+fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<LeafNode4<Triangle>>, triangles: &'a Arena<Triangle>) -> NodeId {
     let mut count = 0;
     let mut prim_triangles: Vec<&Triangle> = Vec::new();
     for i in 0..4 {
@@ -192,7 +192,7 @@ fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<Le
         count += 1;
     }
 
-    let mut triangle_refs = [&DUMMY_TRIANGLE; 4];
+    let mut triangle_refs: [*const Triangle; 4] = [&DUMMY_TRIANGLE; 4];
     for i in 0..count {
         triangle_refs[i] = prim_triangles[i];
     }
@@ -207,7 +207,7 @@ fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<Le
     NodeId::Leaf((leaf_nodes.len() - 1) as i32)
 }
 
-fn write_inner_node<'a: 'b, 'b>(node8: Node8, env: &'a ConversionEnv<'b>) -> NodeId {
+fn write_inner_node(node8: Node8, env: &ConversionEnv) -> NodeId {
     let mut bbox = extract_bbox(&node8, 0);
     let mut count = 0;
     let mut child_nodes = [NodeId::None; 8];
