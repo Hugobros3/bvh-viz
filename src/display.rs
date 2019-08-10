@@ -2,6 +2,7 @@ extern crate minifb;
 
 use minifb::{Key, WindowOptions, Window};
 use std::time::SystemTime;
+use rayon::prelude::*;
 
 pub struct Display {
     window: Window,
@@ -29,13 +30,22 @@ impl Display {
         }
     }
 
-    pub fn refresh<F: Fn(&Window, i32, i32) -> Color>(&mut self, shader: F) {
-        for (i,d) in self.buffer.iter_mut().enumerate() {
+    pub fn refresh<F> (&mut self, shader: F)
+    where F: Fn((usize, usize), i32, i32) -> Color + Sync {
+        let size = self.window.get_size();
+        self.buffer.par_iter_mut().enumerate().for_each(|(i, d)| {
+            let x = i % size.0;
+            let y = i / size.0;
+            let color = shader(size, x as i32, y as i32);
+            *d = rgb(&color);
+        });
+
+        /*for (i,d) in self.buffer.par_iter_mut().enumerate() {
             let x = i % self.window.get_size().0;
             let y = i / self.window.get_size().0;
             let color = shader(&self.window, x as i32, y as i32);
             *d = rgb(&color);
-        }
+        }*/
         self.window.update_with_buffer(&self.buffer).unwrap();
     }
 

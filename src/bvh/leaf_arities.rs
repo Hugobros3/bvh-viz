@@ -43,6 +43,8 @@ impl<P> LeafNode<P> for LeafNode4<P>where
     }
 }
 
+unsafe impl<P> Sync for LeafNode4<P> {}
+
 impl<P> Node for LeafNode4<P> {
     fn bbox(&self) -> &BBox {
         &self.bbox

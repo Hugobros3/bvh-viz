@@ -104,6 +104,28 @@ impl BBox {
 
         return Option::Some(tmin);
     }
+
+    pub fn intersect_faster(&self, ray: &Ray) -> f32 {
+        let t1 = (self.min.x - ray.origin.x) * ray.inverse_direction.x;
+        let t2 = (self.max.x - ray.origin.x) * ray.inverse_direction.x;
+        let t3 = (self.min.y - ray.origin.y) * ray.inverse_direction.y;
+        let t4 = (self.max.y - ray.origin.y) * ray.inverse_direction.y;
+        let t5 = (self.min.z - ray.origin.z) * ray.inverse_direction.z;
+        let t6 = (self.max.z - ray.origin.z) * ray.inverse_direction.z;
+
+        let tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
+        let tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+
+        if tmax < 0.0 {
+            return f32::nan();
+        }
+
+        if tmin > tmax {
+            return f32::nan();
+        }
+
+        return tmin;
+    }
 }
 
 /*fn intersect_bbox_fast(bbox: &BBox, ray: &Ray) {

@@ -41,6 +41,8 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
 
                         let intersection = bbox.intersect_fast(ray);
                         if let Option::Some(distance) = intersection {
+                        //let distance = bbox.intersect_faster(ray);
+                        //if !distance.is_nan() {
                             let mut insert: usize = 0;
                             for i in 0..scount {
                                 if distance > sorted.get(i).unwrap().0 {

@@ -37,9 +37,9 @@ fn main() {
         controller.update(display.window());
         let camera = controller.to_camera(display.window());
 
-        let shader = | window: &Window, x, y | {
-            let s = x as f32 / window.get_size().0 as f32;
-            let t = (window.get_size().1 as i32 - y) as f32 / window.get_size().1 as f32;
+        let shader = | (width, height), x, y | {
+            let s = x as f32 / width as f32;
+            let t = (height as i32 - y) as f32 / height as f32;
             let mut ray = camera.make_ray(s, t);
             let hit = bvh.trace(&mut ray, false);
             Color(f32::ln(ray.steps as f32) * 0.125, ray.steps as f32 / 64.0, if hit { 1.0 } else { 0.0 })
