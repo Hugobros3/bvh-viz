@@ -19,8 +19,7 @@ pub fn enclosing_bbox(left: &BBox, right: &BBox) -> BBox {
 }
 
 fn min<S: PartialOrd>(left: S, right: S) -> S {
-    if (left < right)
-    { left } else { right }
+    if left < right { left } else { right }
 }
 
 pub fn vec3_min<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
@@ -33,8 +32,7 @@ pub fn vec3_min<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
 }
 
 fn max<S: PartialOrd>(left: S, right: S) -> S {
-    if (left > right)
-    { left } else { right }
+    if left > right { left } else { right }
 }
 
 pub fn vec3_max<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>

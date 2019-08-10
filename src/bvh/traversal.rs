@@ -49,8 +49,7 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
                                 insert += 1;
                             }
 
-                            //sorted.insert(insert, (distance, child_id));
-                            /*if insert == scount {
+                            if insert == scount {
                                 sorted[insert] = (distance, child_id);
                             } else if insert < scount {
                                 for i in (insert..(scount)).rev() {
@@ -59,8 +58,7 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
                                 sorted[insert] = (distance, child_id);
                             } else {
                                 panic!("impossible");
-                            }*/
-                            sorted[scount] = (distance, child_id);
+                            }
                             scount+=1;
                         }
                     }
