@@ -1,6 +1,7 @@
 use cgmath::{Vector3, InnerSpace};
 use crate::ray::Ray;
 use cgmath::num_traits::float::FloatCore;
+use crate::vec_utils::vec3_inverse;
 
 pub struct Camera {
     pub eye: Vector3<f32>,
@@ -37,18 +38,10 @@ impl Camera {
         Ray {
             origin: self.eye,
             direction: dir,
-            inverse_direction: inverse(dir),
+            inverse_direction: vec3_inverse(dir),
             t_max: f32::max_value(),
             hit_point: None,
             steps: 0
         }
-    }
-}
-
-fn inverse(v: Vector3<f32>) -> Vector3<f32> {
-    Vector3 {
-        x: 1.0 / v.x,
-        y: 1.0 / v.y,
-        z: 1.0 / v.z,
     }
 }

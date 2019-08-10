@@ -10,6 +10,7 @@ mod bbox;
 mod ray;
 mod camera;
 mod controller;
+mod vec_utils;
 //mod test;
 
 use typed_arena::Arena;

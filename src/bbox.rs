@@ -2,6 +2,7 @@ use cgmath::{vec3, Vector3, InnerSpace};
 use crate::ray::Ray;
 use cgmath::num_traits::float::FloatCore;
 use crate::geometry::Intersect;
+use crate::vec_utils::{vec3_min, vec3_max, max_component, vec3_inverse, vec3_abs, vec3_mul, vec3_sign, max, min};
 
 #[derive(Copy, Clone, Debug)]
 pub struct BBox {
@@ -16,36 +17,6 @@ pub fn enclosing_bbox(left: &BBox, right: &BBox) -> BBox {
         min: min,
         max: max,
     }
-}
-
-fn min<S: PartialOrd>(left: S, right: S) -> S {
-    if left < right { left } else { right }
-}
-
-pub fn vec3_min<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
-    where S: PartialOrd {
-    Vector3 {
-        x: min(left.x, right.x),
-        y: min(left.y, right.y),
-        z: min(left.z, right.z),
-    }
-}
-
-fn max<S: PartialOrd>(left: S, right: S) -> S {
-    if left > right { left } else { right }
-}
-
-pub fn vec3_max<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
-    where S: PartialOrd {
-    Vector3 {
-        x: max(left.x, right.x),
-        y: max(left.y, right.y),
-        z: max(left.z, right.z),
-    }
-}
-
-fn sign(v: Vector3<f32>) -> Vector3<f32> {
-    Vector3 { x: v.x.signum(), y: v.y.signum(), z: v.y.signum() }
 }
 
 impl Intersect for BBox {
@@ -102,3 +73,47 @@ impl Intersect for BBox {
         return Option::None;
     }
 }
+
+impl BBox {
+    fn center(&self) -> Vector3<f32> {
+        0.5_f32 * (self.min + self.max)
+    }
+
+    fn extents(&self) -> Vector3<f32> {
+        self.max - self.min
+    }
+
+    pub fn intersect_fast(&self, ray: &Ray) -> Option<f32> {
+        let t1 = (self.min.x - ray.origin.x) * ray.inverse_direction.x;
+        let t2 = (self.max.x - ray.origin.x) * ray.inverse_direction.x;
+        let t3 = (self.min.y - ray.origin.y) * ray.inverse_direction.y;
+        let t4 = (self.max.y - ray.origin.y) * ray.inverse_direction.y;
+        let t5 = (self.min.z - ray.origin.z) * ray.inverse_direction.z;
+        let t6 = (self.max.z - ray.origin.z) * ray.inverse_direction.z;
+
+        let tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
+        let tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+
+        if tmax < 0.0 {
+            return Option::None;
+        }
+
+        if tmin > tmax {
+            return Option::None;
+        }
+
+        return Option::Some(tmin);
+    }
+}
+
+/*fn intersect_bbox_fast(bbox: &BBox, ray: &Ray) {
+    let can_start_in_box = true;
+
+    let origin = ray.origin - bbox.center();
+
+    let winding = (if can_start_in_box && (max_component(vec3_mul(vec3_abs(ray.origin), (vec3_inverse(bbox.extents() )))) < 1.0) { -1.0 } else { 1.0 });
+    let sgn = -vec3_sign(ray.direction);
+    let d = vec3_mul(bbox.extents() * winding, sgn) - ray.origin;
+
+    let test = Vector3
+}*/

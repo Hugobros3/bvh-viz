@@ -39,7 +39,7 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
                         let child_id = children[child as usize];
                         let bbox = self.get_bbox(child_id);
 
-                        let intersection = bbox.intersect(ray);
+                        let intersection = bbox.intersect_fast(ray);
                         if let Option::Some(distance) = intersection {
                             let mut insert: usize = 0;
                             for i in 0..scount {
