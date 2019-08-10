@@ -32,7 +32,7 @@ fn main() {
     let mut display = Display::new(320, 240);
 
     let mut then = SystemTime::now();
-    while display.window().is_open() /*&& !window.is_key_down(Key::Escape)*/ {
+    while display.window().is_open() {
         controller.update(display.window());
         let camera = controller.to_camera(display.window());
 

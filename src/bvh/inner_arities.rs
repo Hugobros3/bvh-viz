@@ -20,8 +20,8 @@ impl InnerNode for InnerNode2 {
 }
 
 impl Node for InnerNode2 {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn bbox(&self) -> &BBox {
+        &self.bbox
     }
 }
 
@@ -45,7 +45,7 @@ impl InnerNode for InnerNode8 {
 }
 
 impl Node for InnerNode8 {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn bbox(&self) -> &BBox {
+        &self.bbox
     }
 }

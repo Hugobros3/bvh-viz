@@ -59,6 +59,7 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
                             } else {
                                 panic!("impossible");
                             }
+                            //sorted[scount] = (distance, child_id);
                             scount+=1;
                         }
                     }

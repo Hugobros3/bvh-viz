@@ -14,18 +14,14 @@ P : Intersect {
         1
     }
 
-    fn get_primitive<'a>(&'a self, n: usize) -> &'a P {
+    fn get_primitive(&self, n: usize) -> &P {
         return unsafe { &*(self.primitive) };
     }
-
-    /*fn get_primitives<'a>(&'a self, primitive_ids: &mut [&'a P]) {
-        primitive_ids[0] = self.primitive
-    }*/
 }
 
 impl<P> Node for LeafNode1<P> {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn bbox(&self) -> &BBox {
+        &self.bbox
     }
 }
 
@@ -42,19 +38,13 @@ impl<P> LeafNode<P> for LeafNode4<P>where
         self.real_count as i32
     }
 
-    /*fn get_primitives<'a>(&'a self, primitive_ids: &mut [&'a P]) {
-        for i in 0..self.real_count {
-            primitive_ids[i as usize] = self.primitives[i as usize];
-        }
-    }*/
-
-    fn get_primitive<'a>(&'a self, n: usize) -> &'a P {
+    fn get_primitive(&self, n: usize) -> &P {
         return unsafe { &*(self.primitives[n]) };
     }
 }
 
 impl<P> Node for LeafNode4<P> {
-    fn bbox(&self) -> BBox {
-        self.bbox
+    fn bbox(&self) -> &BBox {
+        &self.bbox
     }
 }

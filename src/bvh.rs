@@ -18,7 +18,7 @@ pub enum NodeId {
 }
 
 pub trait Node {
-    fn bbox(&self) -> BBox;
+    fn bbox(&self) -> &BBox;
 }
 
 pub trait InnerNode: Node {
@@ -55,11 +55,11 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
         }
     }
 
-    fn get_bbox(&self, id: NodeId) -> BBox {
+    fn get_bbox(&self, id: NodeId) -> &BBox {
         let node = self.get_node(id);
         match node {
-            Either::Left(node) => { return node.bbox(); }
-            Either::Right(node) => { return node.bbox(); }
+            Either::Left(node) => { return &node.bbox(); }
+            Either::Right(node) => { return &node.bbox(); }
         }
     }
 }
