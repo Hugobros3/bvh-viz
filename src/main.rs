@@ -30,8 +30,8 @@ fn main() {
     let result = load_bvh_rodent("bvh.bin");
     let bvh = &result.bvh;
 
-    let mut controller = Controller::new(vec3(0.0, 0.0, 0.0), vec2(0.0, 0.0));
     let mut display = Display::new(640, 480);
+    let mut controller = Controller::new(vec3(0.0, 0.0, 0.0), vec2(0.0, 0.0));
 
     let mut then = SystemTime::now();
     while display.window().is_open() {
@@ -45,6 +45,8 @@ fn main() {
             let hit = bvh.trace(&mut ray, false);
             //Color(f32::ln(ray.steps as f32) * 0.125, ray.steps as f32 / 64.0, if hit { 1.0 } else { 0.0 })
             let z = clamp(f32::ln(ray.t_max) * 0.25 + 0.25, 0.0, 1.0); Color(z, z, z)
+
+            //Color(s, t, 1.0)
         };
 
         display.refresh(shader);

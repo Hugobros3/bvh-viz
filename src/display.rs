@@ -21,7 +21,7 @@ impl Display {
             resize: false,
             ..WindowOptions::default()
         };
-        let window = Window::new("",width as usize,height as usize, options).unwrap_or_else(|e| { panic!("{}", e); });
+        let mut window = Window::new("",width as usize,height as usize, options).unwrap_or_else(|e| { panic!("{}", e); });
 
         Display {
             window,

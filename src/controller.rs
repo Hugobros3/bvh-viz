@@ -41,6 +41,18 @@ impl Controller {
 
         if window.is_key_down(Key::W) {
             self.position+= -self.view_dir() * 0.05;
+        } else if(window.is_key_down(Key::S)) {
+            self.position+= self.view_dir() * 0.05;
+        }
+
+        if window.is_key_down(Key::A) {
+            let rot = self.rotation.x - std::f32::consts::PI * 0.5;
+            let hmmm = Vector3 { x: f32::sin(rot ), y: 0.0_f32, z: f32::cos(rot) };
+            self.position+= hmmm * 0.05;
+        } else if window.is_key_down(Key::D) {
+            let rot = self.rotation.x + std::f32::consts::PI * 0.5;
+            let hmmm = Vector3 { x: f32::sin(rot ), y: 0.0_f32, z: f32::cos(rot) };
+            self.position+= hmmm * 0.05;
         }
     }
 

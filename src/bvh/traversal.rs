@@ -15,9 +15,10 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
           P: Intersect {
     pub fn trace(&self, ray: &mut Ray, any_hit: bool) -> bool {
         let mut stack: Vec<StackElem> = vec![StackElem { node_id: self.root_node_id, t_min: 0.0 }];
+
         let mut closest_hit = f32::max_value();
 
-        while (!stack.is_empty()) {
+        while !stack.is_empty() {
             ray.steps += 1;
 
             let elem = stack.remove(stack.len() - 1);

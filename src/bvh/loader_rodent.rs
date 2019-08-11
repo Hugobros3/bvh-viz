@@ -137,33 +137,44 @@ struct ConversionEnv {
     triangles: Arena<Triangle>,
 }
 
-fn write_leaf_node<'a:'b, 'b>(bbox: BBox, tri4: Tri4, leaf_nodes: &'b mut Vec<LeafNode4<Triangle>>, triangles: &'a Arena<Triangle>) -> NodeId {
+fn write_leaf_node<'b>(bbox: BBox, id: i32, tri4s: &Vec<Tri4>, leaf_nodes: &'b mut Vec<LeafNode4<Triangle>>, triangles: &'b Arena<Triangle>) -> NodeId {
     let mut count = 0;
     let mut prim_triangles: Vec<&Triangle> = Vec::new();
-    for i in 0..4 {
-        let prim_id = tri4.prim_id[i];
-        let last = prim_id < 0;
 
-        let v0 = extract_vec3(&tri4.v0, i);
-        let e1 = extract_vec3(&tri4.e1, i);
-        let e2 = extract_vec3(&tri4.e2, i);
+    let mut id = id as usize;
+    'outer: loop {
+        let tri4 = tri4s.get(id).unwrap();
+        for i in 0..4 {
+            let prim_id = tri4.prim_id[i];
+            let last = prim_id < 0;
 
-        let v1 = v0 - e1;
-        let v2 = e2 + v0;
+            let v0 = extract_vec3(&tri4.v0, i);
+            let e1 = extract_vec3(&tri4.e1, i);
+            let e2 = extract_vec3(&tri4.e2, i);
 
-        let triangle = Triangle {
-            v0: v0,
-            v1: v1,
-            v2: v2,
-        };
+            let v1 = v0 - e1;
+            let v2 = e2 + v0;
 
-        let tri_ref: &Triangle = triangles.alloc(triangle);
-        prim_triangles.push(tri_ref);
+            let triangle = Triangle {
+                v0: v0,
+                v1: v1,
+                v2: v2,
+            };
 
-        count += 1;
-        if last {
-            break;
+            let tri_ref: &Triangle = triangles.alloc(triangle);
+            prim_triangles.push(tri_ref);
+
+            count += 1;
+            if last {
+                break 'outer;
+            }
         }
+        id += 1;
+    }
+
+    if count > 4 {
+        println!("todo: more than 4 primitives in leaf node, sort this out!");
+        count = 4;
     }
 
     let mut triangle_refs: [*const Triangle; 4] = [&DUMMY_TRIANGLE; 4];
@@ -202,7 +213,7 @@ fn write_inner_node(node8: Node8, env: &ConversionEnv) -> NodeId {
         } else {
             let child_tri4_id = child ^ -1;
             let mut borrow = env.leaf_nodes.borrow_mut();
-            wrote_ref = write_leaf_node(child_bbox, env.tri4vec[child_tri4_id as usize], borrow.as_mut(), &env.triangles);
+            wrote_ref = write_leaf_node(child_bbox, child_tri4_id, &env.tri4vec, borrow.as_mut(), &env.triangles);
         }
         child_nodes[i as usize] = wrote_ref;
         count += 1;

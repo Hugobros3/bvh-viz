@@ -2,12 +2,12 @@ use cgmath::Vector3;
 use std::ops::Mul;
 use cgmath::num_traits::real::Real;
 
-#[inline(always)]
+//#[inline(always)]
 pub fn min<S: PartialOrd>(left: S, right: S) -> S {
     if left < right { left } else { right }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn vec3_min<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
     where S: PartialOrd {
     Vector3 {
@@ -17,12 +17,12 @@ pub fn vec3_min<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
     }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn max<S: PartialOrd>(left: S, right: S) -> S {
     if left > right { left } else { right }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn vec3_max<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
     where S: PartialOrd {
     Vector3 {
@@ -32,17 +32,17 @@ pub fn vec3_max<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
     }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn vec3_sign(v: Vector3<f32>) -> Vector3<f32> {
     Vector3 { x: v.x.signum(), y: v.y.signum(), z: v.y.signum() }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn vec3_abs(v: Vector3<f32>) -> Vector3<f32> {
     Vector3 { x: v.x.abs(), y: v.y.abs(), z: v.y.abs() }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn vec3_inverse(v: Vector3<f32>) -> Vector3<f32> {
     Vector3 {
         x: 1.0 / v.x,
@@ -51,7 +51,7 @@ pub fn vec3_inverse(v: Vector3<f32>) -> Vector3<f32> {
     }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn vec3_mul<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
     where S: Real + Mul {
     Vector3 {
@@ -61,7 +61,7 @@ pub fn vec3_mul<S>(left: Vector3<S>, right: Vector3<S>) -> Vector3<S>
     }
 }
 
-#[inline(always)]
+//#[inline(always)]
 pub fn max_component(v: Vector3<f32>) -> f32 {
     let m = max(v.x, v.y);
     return max(m, v.z);
