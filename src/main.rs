@@ -24,13 +24,14 @@ use crate::camera::Camera;
 use crate::controller::Controller;
 use minifb::Window;
 use std::time::SystemTime;
+use cgmath::num_traits::clamp;
 
 fn main() {
     let result = load_bvh_rodent("bvh.bin");
     let bvh = &result.bvh;
 
     let mut controller = Controller::new(vec3(0.0, 0.0, 0.0), vec2(0.0, 0.0));
-    let mut display = Display::new(320, 240);
+    let mut display = Display::new(640, 480);
 
     let mut then = SystemTime::now();
     while display.window().is_open() {
@@ -42,8 +43,8 @@ fn main() {
             let t = (height as i32 - y) as f32 / height as f32;
             let mut ray = camera.make_ray(s, t);
             let hit = bvh.trace(&mut ray, false);
-            Color(f32::ln(ray.steps as f32) * 0.125, ray.steps as f32 / 64.0, if hit { 1.0 } else { 0.0 })
-            //let z = f32::ln(ray.t_max) * 0.25; Color(z, z, z)
+            //Color(f32::ln(ray.steps as f32) * 0.125, ray.steps as f32 / 64.0, if hit { 1.0 } else { 0.0 })
+            let z = clamp(f32::ln(ray.t_max) * 0.25 + 0.25, 0.0, 1.0); Color(z, z, z)
         };
 
         display.refresh(shader);

@@ -1,6 +1,6 @@
 use cgmath::{Vector3, Vector2, vec3};
 use crate::camera::Camera;
-use minifb::{Window, MouseButton, MouseMode};
+use minifb::{Window, MouseButton, MouseMode, Key};
 
 pub struct Controller {
     pub position: Vector3<f32>,
@@ -38,10 +38,18 @@ impl Controller {
             self.last_mouse_x = -1;
             self.last_mouse_y = -1;
         }
+
+        if window.is_key_down(Key::W) {
+            self.position+= -self.view_dir() * 0.05;
+        }
+    }
+
+    fn view_dir(&self) -> Vector3<f32> {
+        Vector3 { x: f32::sin(self.rotation.x) * f32::cos (self.rotation.y), y: f32::sin(self.rotation.y), z: f32::cos(self.rotation.x) * f32::cos(self.rotation.y) }
     }
 
     pub fn to_camera(&self, window: &Window) -> Camera {
-        let view_dir = Vector3 { x: f32::sin(self.rotation.x) * f32::cos (self.rotation.y), y: f32::sin(self.rotation.y), z: f32::cos(self.rotation.x) * f32::cos(self.rotation.y) };
+        let view_dir = self.view_dir();
         let ratio = window.get_size().0 as f32 / window.get_size().1 as f32;
         Camera::new(self.position, view_dir, UP, ratio, 65.0f32)
     }
