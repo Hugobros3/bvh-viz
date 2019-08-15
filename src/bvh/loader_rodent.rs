@@ -21,6 +21,8 @@ use std::cell::RefCell;
 use std::borrow::{BorrowMut, Borrow};
 use std::marker::PhantomData;
 use std::pin::Pin;
+use std::cmp::min;
+use crate::bvh::NodeId::Inner;
 
 /// describes the BVHs typically used by Rodent on the CPU side
 type RodentBvh4_8<'a> = BvhTree<'a, Triangle, InnerNode8, LeafNode4<Triangle>>;
@@ -110,7 +112,7 @@ pub fn load_bvh_rodent<'a>(filename: &str) -> Result {
                         inner_nodes: &*((conversion_env.inner_nodes.as_ptr())),
                         leaf_nodes: &*((conversion_env.leaf_nodes.as_ptr())),
                         root_node_id,
-                        terrible: PhantomData
+                        terrible: PhantomData,
                     },
                     data: conversion_env,
                 }
@@ -137,13 +139,14 @@ struct ConversionEnv {
     triangles: Arena<Triangle>,
 }
 
-fn write_leaf_node<'b>(bbox: BBox, id: i32, tri4s: &Vec<Tri4>, leaf_nodes: &'b mut Vec<LeafNode4<Triangle>>, triangles: &'b Arena<Triangle>) -> NodeId {
+//fn write_leaf_node<'b>(bbox: BBox, id: i32, tri4s: &Vec<Tri4>, leaf_nodes: &'b mut Vec<LeafNode4<Triangle>>, triangles: &'b Arena<Triangle>) -> NodeId {
+fn write_leaf_node<'b>(bbox: BBox, id: i32, env: &ConversionEnv) -> NodeId {
     let mut count = 0;
     let mut prim_triangles: Vec<&Triangle> = Vec::new();
 
     let mut id = id as usize;
     'outer: loop {
-        let tri4 = tri4s.get(id).unwrap();
+        let tri4 = env.tri4vec.get(id).unwrap();
         for i in 0..4 {
             let prim_id = tri4.prim_id[i];
             let last = prim_id < 0;
@@ -161,7 +164,7 @@ fn write_leaf_node<'b>(bbox: BBox, id: i32, tri4s: &Vec<Tri4>, leaf_nodes: &'b m
                 v2: v2,
             };
 
-            let tri_ref: &Triangle = triangles.alloc(triangle);
+            let tri_ref: &Triangle = env.triangles.alloc(triangle);
             prim_triangles.push(tri_ref);
 
             count += 1;
@@ -172,24 +175,98 @@ fn write_leaf_node<'b>(bbox: BBox, id: i32, tri4s: &Vec<Tri4>, leaf_nodes: &'b m
         id += 1;
     }
 
-    if count > 4 {
+    /*if count > 4 {
         println!("todo: more than 4 primitives in leaf node, sort this out!");
         count = 4;
+    }*/
+
+    let mut borrowed_inner = env.inner_nodes.borrow_mut();
+    let mut borrowed_leaves = env.leaf_nodes.borrow_mut();
+
+    let mut leaf_nodes_ids = Vec::<NodeId>::new();
+    let mut remaining = count;
+
+    let mut subtree_root = NodeId::None;
+    let mut encompassing = min(4, count);
+
+    while remaining > 0 {
+        let mut triangle_refs: [*const Triangle; 4] = [&DUMMY_TRIANGLE; 4];
+
+        let taking = min(4, remaining);
+        for i in 0..taking {
+            triangle_refs[i] = prim_triangles.remove(prim_triangles.len() - 1);
+        }
+        remaining -= taking;
+
+        let node = LeafNode4 {
+            real_count: taking as i8,
+            primitives: triangle_refs,
+            bbox,
+        };
+        borrowed_leaves.push(node);
+
+        let node_id = NodeId::Leaf((borrowed_leaves.len() - 1) as i32);
+        leaf_nodes_ids.push(node_id);
+
+        subtree_root = node_id
     }
 
-    let mut triangle_refs: [*const Triangle; 4] = [&DUMMY_TRIANGLE; 4];
-    for i in 0..count {
-        triangle_refs[i] = prim_triangles[i];
+    if leaf_nodes_ids.len() > 1 {
+        let mut bottom_nodes_ids = Vec::<NodeId>::new();
+        for leaf_node_id in leaf_nodes_ids {
+            bottom_nodes_ids.push(leaf_node_id);
+        }
+
+        let mut upper_nodes_ids = Vec::<NodeId>::new();
+
+        while true {
+            let mut slots = [NodeId::None; 8];
+            let mut usage = 0;
+
+            for bottom_node in bottom_nodes_ids.iter() {
+                slots[usage] = *bottom_node;
+                usage += 1;
+                if usage == 8 {
+                    let upper_node = InnerNode8 {
+                        real_count: usage as i8,
+                        nodes: slots,
+                        bbox,
+                    };
+
+                    borrowed_inner.push(upper_node);
+                    let node_id = NodeId::Inner((borrowed_inner.len() - 1) as i32);
+                    upper_nodes_ids.push(node_id);
+
+                    slots = [NodeId::None; 8];
+                    usage = 0;
+                }
+            }
+            if usage > 0 {
+                let upper_node = InnerNode8 {
+                    real_count: usage as i8,
+                    nodes: slots,
+                    bbox,
+                };
+
+                borrowed_inner.push(upper_node);
+                let node_id = NodeId::Inner((borrowed_inner.len() - 1) as i32);
+                upper_nodes_ids.push(node_id);
+            }
+
+            if upper_nodes_ids.len() == 1 {
+                subtree_root = upper_nodes_ids.remove(0);
+                break;
+            } else {
+                bottom_nodes_ids.clear();
+                for upper_node_id in upper_nodes_ids.iter() {
+                    bottom_nodes_ids.push(*upper_node_id);
+                }
+                upper_nodes_ids.clear()
+            }
+        }
     }
 
-    let node = LeafNode4 {
-        real_count: count as i8,
-        primitives: triangle_refs,
-        bbox,
-    };
-
-    leaf_nodes.push(node);
-    NodeId::Leaf((leaf_nodes.len() - 1) as i32)
+    subtree_root
 }
 
 fn write_inner_node(node8: Node8, env: &ConversionEnv) -> NodeId {
@@ -212,8 +289,7 @@ fn write_inner_node(node8: Node8, env: &ConversionEnv) -> NodeId {
             wrote_ref = write_inner_node(child_node8, env);
         } else {
             let child_tri4_id = child ^ -1;
-            let mut borrow = env.leaf_nodes.borrow_mut();
-            wrote_ref = write_leaf_node(child_bbox, child_tri4_id, &env.tri4vec, borrow.as_mut(), &env.triangles);
+            wrote_ref = write_leaf_node(child_bbox, child_tri4_id, &env);
         }
         child_nodes[i as usize] = wrote_ref;
         count += 1;
@@ -282,17 +358,15 @@ fn read_buffer(reader: &mut BufReader<File>) -> Vec<u8> {
 
     let mut compressed_data: Vec<u8> = Vec::new();
     compressed_data.resize(compressed_size as usize, 0);
-    {
-        let target = &mut compressed_data[..];
-        reader.read_exact(target);
-    }
+
+    let target = &mut compressed_data[..];
+    reader.read_exact(target);
+
 
     let mut uncompressed_data: Vec<u8> = Vec::new();
     uncompressed_data.resize(uncompressed_size as usize, 0);
 
-    {
-        let k = lz4::decode_block(&mut compressed_data[..], &mut uncompressed_data);
-    }
+    let k = lz4::decode_block(&mut compressed_data[..], &mut uncompressed_data);
 
     uncompressed_data
 }
