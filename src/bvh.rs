@@ -10,7 +10,7 @@ use crate::bbox::BBox;
 use std::marker::PhantomData;
 use crate::geometry::Intersect;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NodeId {
     Inner(i32),
     Leaf(i32),

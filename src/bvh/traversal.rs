@@ -3,10 +3,30 @@ use crate::ray::{Ray, HitPoint};
 use cgmath::num_traits::float::FloatCore;
 use super::either::Either;
 use crate::geometry::Intersect;
+use std::collections::BinaryHeap;
+use std::cmp::Ordering;
 
+#[derive(Clone, Copy, PartialEq)]
 struct StackElem {
     node_id: NodeId,
     t_min: f32,
+}
+
+impl PartialOrd for StackElem {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        //self.t_min.partial_cmp(&other.t_min)
+        other.t_min.partial_cmp(&self.t_min)
+    }
+}
+
+impl Ord for StackElem {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl Eq for StackElem {
+
 }
 
 impl<'a, P, I, L> BvhTree<'a, P, I, L>
@@ -14,13 +34,20 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
           L: LeafNode<P>,
           P: Intersect {
     pub fn trace(&self, ray: &mut Ray, any_hit: bool) -> bool {
-        let mut stack: Vec<StackElem> = vec![StackElem { node_id: self.root_node_id, t_min: 0.0 }];
+        let mut stack = Vec::<StackElem>::new();
+        //let mut heap = BinaryHeap::<StackElem>::new();
+
+        let root = StackElem { node_id: self.root_node_id, t_min: 0.0 };
+        stack.push(root);
+        //heap.push(root);
 
         let mut closest_hit = f32::max_value();
 
+        //while !heap.is_empty() {
         while !stack.is_empty() {
             ray.steps += 1;
 
+            //let elem = heap.pop().unwrap();
             let elem = stack.remove(stack.len() - 1);
             if elem.t_min > ray.t_max {
                 continue;
@@ -31,6 +58,16 @@ impl<'a, P, I, L> BvhTree<'a, P, I, L>
                 Either::Left(inner_node) => {
                     let mut children = [NodeId::None; 8];
                     inner_node.get_children(&mut children);
+
+                    /*for child in 0..inner_node.children_count() {
+                        let child_id = children[child as usize];
+                        let bbox = self.get_bbox(child_id);
+
+                        let intersection = bbox.intersect_fast(ray);
+                        if let Option::Some(distance) = intersection {
+                            heap.push(StackElem { node_id: child_id, t_min: distance })
+                        }
+                    }*/
 
                     //let mut sorted: Vec<(f32, NodeId)> = Vec::new();
                     let mut sorted = [(0.0,NodeId::None); 8];
